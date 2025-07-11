@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Customer Agent Demo - Darryl Knapp</title>
+    <!-- Bootstrap 5.3 CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <!-- Google Fonts: Roboto -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <a class="navbar-brand" href="portfolio.html">Darryl Knapp</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="portfolio.html">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="ai-customer-agent.html"
+                >AI Customer Agent</a
+              >
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#contact">Contact</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <section class="py-5">
+      <div class="container">
+        <h2 class="text-center mb-4">AI Customer Agent Demo</h2>
+        <p class="text-center mb-5">
+          See the AI-powered email processing system in action.
+        </p>
+        <div class="row">
+          <div class="col-md-8 mx-auto">
+            <!-- Email Form Card -->
+            <div class="card mb-4 shadow-sm">
+              <div class="card-body">
+                <h5 class="card-title">Compose Email</h5>
+                <p class="text-muted">
+                  Interactive demo coming soon with FastAPI integration.
+                </p>
+                <form id="emailForm">
+                  <div class="mb-3">
+                    <label for="emailSelect" class="form-label"
+                      >Select Predefined Email</label
+                    >
+                    <select class="form-select" id="emailSelect">
+                      <option value="">Choose an email...</option>
+                    </select>
+                  </div>
+                  <div class="mb-3">
+                    <label for="emailId" class="form-label">Email ID</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="emailId"
+                      required
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="subject" class="form-label">Subject</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="subject"
+                      required
+                    />
+                  </div>
+                  <div class="mb-3">
+                    <label for="message" class="form-label">Message</label>
+                    <textarea
+                      class="form-control"
+                      id="message"
+                      rows="5"
+                      required
+                    ></textarea>
+                  </div>
+                  <button
+                    type="submit"
+                    class="btn btn-primary"
+                    id="submitButton"
+                    disabled
+                  >
+                    <span id="submitText">Send Email</span>
+                    <span
+                      id="loadingSpinner"
+                      class="spinner-border spinner-border-sm d-none"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
+                  </button>
+                </form>
+              </div>
+            </div>
+            <!-- Response Card (Hidden Initially) -->
+            <div class="card mb-4 shadow-sm d-none" id="responseCard">
+              <div class="card-body">
+                <h5 class="card-title">Response</h5>
+                <p>
+                  <strong>Email ID:</strong> <span id="responseEmailId"></span>
+                </p>
+                <p>
+                  <strong>Category:</strong> <span id="responseCategory"></span>
+                </p>
+                <p><strong>Response:</strong></p>
+                <div id="responseText" class="border p-3 bg-light"></div>
+              </div>
+            </div>
+            <!-- GitHub Link -->
+            <p class="text-center">
+              <a
+                href="https://github.com/drl270/AI-Agent-Emails"
+                class="btn btn-primary"
+                target="_blank"
+                >View on GitHub</a
+              >
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white text-center py-3">
+      <p>© 2025 Darryl Knapp. All rights reserved.</p>
+    </footer>
+
+    <!-- Bootstrap 5.3 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
