@@ -32,7 +32,9 @@ load_dotenv()
 api_key = os.getenv('OPENAI_API_KEY')
 collection_products = os.getenv('MONGO_COLLECTION_PRODUCTS_NAME')
 collection_prompts = os.getenv('MONGO_COLLECTION_PROMPTS_NAME')
-db_handler = MongoDBHandler()
+uri = os.getenv("MONGODB_URI")
+db = os.getenv('MONGO_DB_NAME')
+db_handler = MongoDBHandler(uri, db)
 
 try:
     prompts = load_prompts(db_handler, collection_prompts)

@@ -7,14 +7,13 @@ import pandas as pd
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from bedrock_api import BedrockAPI
 from mongodb_handler import MongoDBHandler
 
 logger = logging.getLogger(__name__)
 
 class ProductInquiry:
-    def __init__(
-        self, product_catalog_df, catalog_embeddings, api_key, prompts
-    ):
+    def __init__(self, product_catalog_df, catalog_embeddings, api_key, prompts):
         load_dotenv()
         self.collection_products = os.getenv('MONGO_COLLECTION_PRODUCTS_NAME')
         self.db_handler = MongoDBHandler()
@@ -22,6 +21,7 @@ class ProductInquiry:
         self.catalog_embeddings = catalog_embeddings
         self.client = OpenAI(api_key=api_key)
         self.prompts = prompts
+        self.bedrock_api = BedrockAPI()
 
     def embed_product_description(self, description):
         try:
@@ -36,28 +36,7 @@ class ProductInquiry:
             logger.error(f"Error embedding product description: {e}")
             return None
 
-    def extract_inquiry_details(self, email_content):
-        prompt_doc = self.prompts.get("inquiry_extract")
-        if not prompt_doc:
-            logger.error("inquiry_extract prompt not found")
-            return "Customer Name: Customer\nProduct of Interest: Product\nRelevant Questions: General inquiry"
-        prompt = prompt_doc["content"].replace("{email_content}", email_content)
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=1000,
-                temperature=0.0,
-            )
-            details = response.choices[0].message.content
-            return details
-        except Exception as e:
-            logger.error(f"Error extracting inquiry details: {e}")
-            return "Customer Name: Customer\nProduct of Interest: Product\nRelevant Questions: General inquiry"
-
-    def find_closest_products(
-        self, product_embedding, k=5, filter_features=None, distance_threshold=None
-    ):
+    def find_closest_products(self, product_embedding, k=5, filter_features=None, distance_threshold=None):
         product_ids, distances, indices = self.db_handler.vector_search(
             self.collection_products, product_embedding, k=k, min_stock=0
         )
@@ -137,6 +116,23 @@ class ProductInquiry:
                 for p in closest_products
             ]
         )
+
+        # Extract verify_category prompt and call Bedrock
+        verify_category_doc = self.prompts.get("verify_category")
+        if not verify_category_doc:
+            return "We encountered an issue while validating products. Please contact us again."
+        verify_prompt = verify_category_doc["content"].replace("{email}", email_content).replace("{similar_items}", closest_products_str)
+        bedrock_response = self.bedrock_api.call_bedrock(verify_prompt)
+        try:
+            filtered_results = json.loads(bedrock_response)
+            good_alternatives = filtered_results.get("Good Alternative", [])
+        except Exception as e:
+            logger.error(f"Error parsing Bedrock response: {e}")
+            good_alternatives = []
+
+        # Set closest_products_str: use good_alternatives if non-empty, else empty string
+        closest_products_str = "\n".join(good_alternatives) if good_alternatives else ""
+
         response_prompt_doc = self.prompts.get("inquiry_response")
         if not response_prompt_doc:
             return "We encountered an issue while generating the response. Please contact us again."

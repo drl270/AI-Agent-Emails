@@ -73,21 +73,32 @@ def get_prompts():
             }, indent=2)
         },
         {
-            "prompt_name": "order_response",
-            "project": "customer_agent",
-            "type": "production",
-            "role": "user",
-            "content": json.dumps({
-                "role": "customer support assistant",
-                "task_1": "Write a professional email based on order summary {summary_string}",
-                "task_2": "Recommend other items based on the provided product names, IDs, and descriptions: {similar_items}",
-                "task_3": "Personalize response with customer name or purpose if provided, else use 'Dear Customer'",
-                "task_4": "If a product has both quantity_filled > 0 and quantity_unfilled > 0, congratulate the customer on the filled portion and apologize for the unfilled portion.",
-                "task_5": "If the item was for a specific purpose {email_content} (e.g., gift, boutique shop), personalize the response.",
-                "task_6": "End with a friendly salutation signed Customer Service",
-                "example_output": "We recommend the Sleek Wallet (SWL2345), with multiple card slots and a stylish design, perfect for your boutique’s clientele.",
-                "restrictions": "If no name is mentioned, use 'Dear Customer. Do not include placeholders like [Your Name], [Your Position]"
-            }, indent=2)
+        "prompt_name": "order_response",
+        "project": "customer_agent",
+        "type": "production",
+        "role": "user",
+        "content": json.dumps({
+            "role": "customer support assistant",
+            "task_1": "Write a professional email based on order summary {summary_string}",
+            "task_2": "Recommend other items based on the provided product names, IDs, and descriptions: {similar_items}",
+            "task_3": "If a product has both quantity_filled > 0 and quantity_unfilled > 0, congratulate the customer on the filled portion and apologize for the unfilled portion.",
+            "task_4": "If there is a filled quantity tell the customer that they can log into the website and use this code {code} to complete the order.",
+            "task_5": "End with a friendly salutation signed Customer Service",
+            "example_output": (
+                "Dear Customer:\n"
+                " We are excited to inform you that we are able to fulfill your request for:\n"
+                "  3 Neon Sock (NOS1745)\n"
+                "  1 Pair of Retro Blue Jean (BJT1876)\n"
+                " Unfortunately we could not complete the entire request for:\n"
+                "  3 Pair of Retro Blue Jean (BJT1876)\n"
+                " We would like to recommend:\n"
+                "  Faded Grey Jean 60's style (SIX2298)\n"
+                " We think this would be a great choice. You can complete your order by logging into our website with this code {code}.\n"
+                " Thank you for being a great customer and let me know if there is anything else I can help you with.\n"
+                " Regards, Customer Service"
+            ),
+            "restrictions": "If no name is mentioned, use 'Dear Customer'. Do not include placeholders like [Your Name], [Your Position]"
+        }, indent=2)
         },
         {
             "prompt_name": "order_extract_mentions",

@@ -13,17 +13,17 @@ logger = logging.getLogger(__name__)
 class MongoDBHandler:
     _instance = None
 
-    def __new__(cls):
+    def __new__(cls, uri, db):
         if cls._instance is None:
             cls._instance = super(MongoDBHandler, cls).__new__(cls)
-            cls._instance._initialize()
+            cls._instance._initialize(uri, db)
         return cls._instance
 
-    def _initialize(self):
+    def _initialize(self, uri, db):
         load_dotenv()
-        self.uri = os.getenv("MONGODB_URI")
+        self.uri = uri
         self.client = MongoClient(self.uri)
-        self.db = self.client[os.getenv('MONGO_DB_NAME')]
+        self.db = self.client[db]
         try:
             self.client.admin.command('ping')
             logger.info("MongoDB connection established successfully")

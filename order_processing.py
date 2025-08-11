@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import random
+import string
 
 import numpy as np
 import pandas as pd
@@ -159,7 +161,7 @@ class OrderProcessing:
             )
             quantity_filled = min(requested_quantity, stock_available)
             quantity_unfilled = requested_quantity - quantity_filled
-            new_stock_level = stock_available - quantity_filled
+            new_stock_level = stock_available # - quantity_filled
             self.db_handler.update_document(
                 self.collection_products,
                 {"product_id": product_id},
@@ -222,11 +224,27 @@ class OrderProcessing:
                         logger.warning(f"No product info found for ID: {product_id}")
                         similar_items.append(product_id)
 
+        # Extract verify_category prompt and call Bedrock
+        verify_category_doc = self.prompts.get("verify_category")
+        if not verify_category_doc:
+            return "We encountered an issue while validating products. Please contact us again."
+        verify_prompt = verify_category_doc["content"].replace("{email}", email_content).replace("{similar_items}", ", ".join(similar_items))
+        bedrock_response = self.bedrock_api.call_bedrock(verify_prompt)
+        try:
+            filtered_results = json.loads(bedrock_response)
+            good_alternatives = filtered_results.get("Good Alternative", [])
+        except Exception as e:
+            logger.error(f"Error parsing Bedrock response: {e}")
+            good_alternatives = []
+
+        similar_items = "\n".join(good_alternatives) if good_alternatives else ""
+
         response_prompt_doc = self.prompts.get("order_response")
         if not response_prompt_doc:
             return "An error occurred while generating the response."
-
-        response_prompt = response_prompt_doc["content"].replace("{summary_string}", summary_string).replace("{email_content}", email_content).replace("{similar_items}", ", ".join(similar_items))
+        
+        random_code = ''.join(random.choices(string.ascii_letters + string.digits, k=7))
+        response_prompt = response_prompt_doc["content"].replace("{summary_string}", summary_string).replace("{email_content}", email_content).replace("{similar_items}", similar_items).replace("{code}", random_code)
 
         try:
             response = OpenAI.chat.completions.create(
