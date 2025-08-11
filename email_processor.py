@@ -12,12 +12,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class EmailProcessor:
-    def __init__(self, api_key, prompts):
+    def __init__(self, api_key, prompts, uri, db):
         load_dotenv()
         openai.api_key = api_key
         self.embeddings = None
         self.vector_store = None
-        self.db_handler = MongoDBHandler()
+        self.db_handler = MongoDBHandler(uri, db)
         self.collection_products = os.getenv('MONGO_COLLECTION_PRODUCTS_NAME')
         self.prompts = prompts
 

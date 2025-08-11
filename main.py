@@ -50,15 +50,15 @@ try:
 except Exception as e:
     raise ValueError(f"Error loading product data from MongoDB {collection_products}") from e
 
-product_processor = ProductCatalogProcessor(api_key)
+product_processor = ProductCatalogProcessor(api_key, uri, db)
 product_processor.process_catalog()
 processed_catalog_df = product_processor.get_product_catalog()
 catalog_embeddings = processed_catalog_df["embedding"].tolist()
 product_inquiry = ProductInquiry(
-    processed_catalog_df, catalog_embeddings, api_key, prompts
+    processed_catalog_df, catalog_embeddings, api_key, prompts, uri, db
 )
-order_processor = OrderProcessing(api_key, prompts, use_saved_product_embeddings=True)
-email_processor = EmailProcessor(api_key, prompts)
+order_processor = OrderProcessing(api_key, prompts, uri, db, use_saved_product_embeddings=True)
+email_processor = EmailProcessor(api_key, prompts, uri, db)
 
 @app.post("/process_email")
 async def process_email(email: EmailRequest):

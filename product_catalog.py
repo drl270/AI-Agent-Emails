@@ -11,10 +11,10 @@ from mongodb_handler import MongoDBHandler
 logger = logging.getLogger(__name__)
 
 class ProductCatalogProcessor:
-    def __init__(self, api_key):
+    def __init__(self, api_key, uri, db):
         load_dotenv()
         self.collection_products = os.getenv('MONGO_COLLECTION_PRODUCTS_NAME')
-        self.db_handler = MongoDBHandler()
+        self.db_handler = MongoDBHandler(uri, db)
         self.client = OpenAI(api_key=api_key)
         self.product_catalog_df = None
         self.embeddings = None

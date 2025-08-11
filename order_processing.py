@@ -15,11 +15,11 @@ logger = logging.getLogger(__name__)
 
 class OrderProcessing:
     def __init__(
-        self, api_key, prompts, use_saved_product_embeddings: bool = True
+        self, api_key, prompts, uri, db, use_saved_product_embeddings: bool = True
     ):
         load_dotenv()
         self.collection_products = os.getenv('MONGO_COLLECTION_PRODUCTS_NAME')
-        self.db_handler = MongoDBHandler()
+        self.db_handler = MongoDBHandler(uri, db)
         OpenAI.api_key = api_key
         self.prompts = prompts
         documents = self.db_handler.find_documents(self.collection_products)
