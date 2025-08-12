@@ -9,19 +9,22 @@ import pandas as pd
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from bedrock_api import BedrockAPI
+from global_state import Category, State
 from mongodb_handler import MongoDBHandler
 
 logger = logging.getLogger(__name__)
 
 class OrderProcessing:
     def __init__(
-        self, api_key, prompts, uri, db, use_saved_product_embeddings: bool = True
+        self, api_key, prompts, db_handler, use_saved_product_embeddings: bool = True
     ):
         load_dotenv()
         self.collection_products = os.getenv('MONGO_COLLECTION_PRODUCTS_NAME')
-        self.db_handler = MongoDBHandler(uri, db)
+        self.db_handler = db_handler
         OpenAI.api_key = api_key
         self.prompts = prompts
+        self.bedrock_api = BedrockAPI()
         documents = self.db_handler.find_documents(self.collection_products)
         if not documents:
             logger.error(f"No products found in MongoDB {self.collection_products} collection")
@@ -77,7 +80,7 @@ class OrderProcessing:
     def embed_product_description(self, description):
         try:
             response = OpenAI.embeddings.create(
-                input=description, model="text-embedding-ada-002"
+                input=description, model=os.getenv('OPEN_AI_EMBEDDING_MODEL')
             )
             embedding = response.data[0].embedding
             return embedding
@@ -85,15 +88,15 @@ class OrderProcessing:
             logger.error(f"Error embedding description: {e}")
             return None
 
-    def extract_order_details(self, email_content):
+    def extract_order_details(self, state: State) -> dict:
         prompt_doc = self.prompts.get("order_extract")
         if not prompt_doc:
             logger.error("order_extract prompt not found")
             return []
-        prompt = prompt_doc["content"].replace("{email_content}", email_content)
+        prompt = prompt_doc["content"].replace("{email_content}", state.customer_message.body)
         try:
             response = OpenAI.chat.completions.create(
-                model="gpt-4",
+                model=os.getenv('OPEN_AI_CHAT_MODEL'),
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1000,
                 temperature=0.0,
@@ -118,6 +121,8 @@ class OrderProcessing:
                         "stock_available": stock_available,
                     }
                     items.append(current_item)
+            state.customer_message.products_purchase = [item["product_id"] for item in items]
+            state.customer_message.order_details = items
             return items
         except Exception as e:
             logger.error(f"Error extracting order details: {e}")
@@ -150,9 +155,9 @@ class OrderProcessing:
             logger.error(f"Error checking stock for product_id {product_id}: {e}")
             return 0
 
-    def process_order(self, order_details):
+    def process_order(self, state: State) -> str:
         order_summary = {}
-        for item in order_details:
+        for item in state.customer_message.order_details:
             product_id = item["product_id"]
             requested_quantity = item["quantity"]
             stock_available = item["stock_available"]
@@ -161,7 +166,7 @@ class OrderProcessing:
             )
             quantity_filled = min(requested_quantity, stock_available)
             quantity_unfilled = requested_quantity - quantity_filled
-            new_stock_level = stock_available # - quantity_filled
+            new_stock_level = stock_available  # - quantity_filled
             self.db_handler.update_document(
                 self.collection_products,
                 {"product_id": product_id},
@@ -172,6 +177,7 @@ class OrderProcessing:
             ] = new_stock_level
             order_summary[product_id] = (quantity_filled, quantity_unfilled)
         formatted_summary = self.prepare_order_summary_for_chatgpt(order_summary)
+        state.customer_message.formatted_summary = formatted_summary
         return formatted_summary
 
     def prepare_order_summary_for_chatgpt(self, order_summary):
@@ -182,16 +188,16 @@ class OrderProcessing:
         summary_string = ", ".join(formatted_summary)
         return summary_string
 
-    def generate_order_response(self, summary_string, email_content, order_details):
+    def generate_order_response(self, state: State) -> str:
         prompt_extract_doc = self.prompts.get("order_extract_mentions")
         if not prompt_extract_doc:
             logger.error("order_extract_mentions prompt not found")
             extracted_products = []
         else:
-            prompt_extract = prompt_extract_doc["content"].replace("{email_content}", email_content)
+            prompt_extract = prompt_extract_doc["content"].replace("{email_content}", state.customer_message.body)
             try:
                 response_extract = OpenAI.chat.completions.create(
-                    model="gpt-4",
+                    model=os.getenv('OPEN_AI_CHAT_MODEL'),
                     messages=[{"role": "user", "content": prompt_extract}],
                     max_tokens=1000,
                     temperature=0.1,
@@ -203,7 +209,7 @@ class OrderProcessing:
                 logger.error(f"Error extracting product mentions: {e}")
                 extracted_products = []
 
-        ordered_product_ids = [item["product_id"] for item in order_details]
+        ordered_product_ids = [item["product_id"] for item in state.customer_message.order_details]
         similar_items = []
         for product in extracted_products:
             product_desc = product.get("Product description", "")
@@ -224,11 +230,11 @@ class OrderProcessing:
                         logger.warning(f"No product info found for ID: {product_id}")
                         similar_items.append(product_id)
 
-        # Extract verify_category prompt and call Bedrock
         verify_category_doc = self.prompts.get("verify_category")
         if not verify_category_doc:
-            return "We encountered an issue while validating products. Please contact us again."
-        verify_prompt = verify_category_doc["content"].replace("{email}", email_content).replace("{similar_items}", ", ".join(similar_items))
+            state.customer_message.response = "We encountered an issue while validating products. Please contact us again."
+            return state.customer_message.response
+        verify_prompt = verify_category_doc["content"].replace("{email}", state.customer_message.body).replace("{similar_items}", ", ".join(similar_items))
         bedrock_response = self.bedrock_api.call_bedrock(verify_prompt)
         try:
             filtered_results = json.loads(bedrock_response)
@@ -241,20 +247,24 @@ class OrderProcessing:
 
         response_prompt_doc = self.prompts.get("order_response")
         if not response_prompt_doc:
-            return "An error occurred while generating the response."
+            state.customer_message.response = "An error occurred while generating the response."
+            return state.customer_message.response
         
         random_code = ''.join(random.choices(string.ascii_letters + string.digits, k=7))
-        response_prompt = response_prompt_doc["content"].replace("{summary_string}", summary_string).replace("{email_content}", email_content).replace("{similar_items}", similar_items).replace("{code}", random_code)
+        response_prompt = response_prompt_doc["content"].replace("{summary_string}", state.customer_message.formatted_summary).replace("{email_content}", state.customer_message.body).replace("{similar_items}", similar_items).replace("{code}", random_code)
 
         try:
             response = OpenAI.chat.completions.create(
-                model="gpt-4",
+                model=os.getenv('OPEN_AI_CHAT_MODEL'),
                 messages=[{"role": "user", "content": response_prompt}],
                 max_tokens=1000,
                 temperature=0.0,
             )
             final_response = response.choices[0].message.content
         except Exception as e:
+            logger.error(f"Error generating order response: {e}")
             final_response = "An error occurred while generating the response."
 
+        state.customer_message.response = final_response
+        state.customer_message.history.append(final_response)
         return final_response

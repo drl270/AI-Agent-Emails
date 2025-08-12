@@ -11,10 +11,10 @@ from mongodb_handler import MongoDBHandler
 logger = logging.getLogger(__name__)
 
 class ProductCatalogProcessor:
-    def __init__(self, api_key, uri, db):
+    def __init__(self, api_key, db_handler):
         load_dotenv()
         self.collection_products = os.getenv('MONGO_COLLECTION_PRODUCTS_NAME')
-        self.db_handler = MongoDBHandler(uri, db)
+        self.db_handler = db_handler
         self.client = OpenAI(api_key=api_key)
         self.product_catalog_df = None
         self.embeddings = None
@@ -25,7 +25,7 @@ class ProductCatalogProcessor:
                 logger.warning("Empty product description, skipping embedding.")
                 return None
             response = self.client.embeddings.create(
-                input=description, model="text-embedding-ada-002"
+                input=description, model= os.getenv('OPEN_AI_EMBEDDING_MODEL')
             )
             return response.data[0].embedding
         except Exception as e:

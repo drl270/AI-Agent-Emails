@@ -8,15 +8,16 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from bedrock_api import BedrockAPI
+from global_state import Category, State
 from mongodb_handler import MongoDBHandler
 
 logger = logging.getLogger(__name__)
 
 class ProductInquiry:
-    def __init__(self, product_catalog_df, catalog_embeddings, api_key, prompts, uri, db):
+    def __init__(self, product_catalog_df, catalog_embeddings, api_key, prompts, db_handler):
         load_dotenv()
         self.collection_products = os.getenv('MONGO_COLLECTION_PRODUCTS_NAME')
-        self.db_handler = MongoDBHandler(uri, db)
+        self.db_handler = db_handler
         self.product_catalog_df = product_catalog_df
         self.catalog_embeddings = catalog_embeddings
         self.client = OpenAI(api_key=api_key)
@@ -26,7 +27,7 @@ class ProductInquiry:
     def embed_product_description(self, description):
         try:
             response = self.client.embeddings.create(
-                input=description, model="text-embedding-ada-002"
+                input=description, model=os.getenv('OPEN_AI_EMBEDDING_MODEL')
             )
             embedding = response.data[0].embedding
             norm = np.linalg.norm(embedding)
@@ -64,14 +65,15 @@ class ProductInquiry:
             return pd.DataFrame()
         return closest_products
 
-    def generate_inquiry_response(self, email_content, k=5):
+    def generate_inquiry_response(self, state: State, k=5) -> str:
         prompt_extract_doc = self.prompts.get("inquiry_extract")
         if not prompt_extract_doc:
-            return "We encountered an issue while processing your inquiry. Please contact us again."
-        prompt_extract = prompt_extract_doc["content"].replace("{email_content}", email_content)
+            state.customer_message.response = "We encountered an issue while processing your inquiry. Please contact us again."
+            return state.customer_message.response
+        prompt_extract = prompt_extract_doc["content"].replace("{email_content}", state.customer_message.body)
         try:
             response_extract = self.client.chat.completions.create(
-                model="gpt-4",
+                model=os.getenv('OPEN_AI_CHAT_MODEL'),
                 messages=[{"role": "user", "content": prompt_extract}],
                 max_tokens=1000,
                 temperature=0.2,
@@ -79,14 +81,22 @@ class ProductInquiry:
             inquiry_details = json.loads(response_extract.choices[0].message.content)
         except Exception as e:
             logger.error(f"Error extracting inquiry details: {e}")
-            return "We encountered an issue while processing your inquiry. Please contact us again."
+            state.customer_message.response = "We encountered an issue while processing your inquiry. Please contact us again."
+            return state.customer_message.response
 
         customer_name = inquiry_details.get("customer_name", "Customer")
         products_of_interest = inquiry_details.get("products_of_interest", [])
         questions = inquiry_details.get("questions", "General inquiry")
 
+        # Update state with customer details
+        state.customer_message.first_name = customer_name.split()[0] if customer_name else ""
+        state.customer_message.last_name = customer_name.split()[-1] if customer_name and len(customer_name.split()) > 1 else ""
+        state.customer_message.products_inquiry = products_of_interest
+
         if not products_of_interest:
-            return f"Dear {customer_name},\n\nWe couldn't identify the product of interest from your inquiry. Please provide more details or specify a product you'd like information about."
+            state.customer_message.response = f"Dear {customer_name},\n\nWe couldn't identify the product of interest from your inquiry. Please provide more details or specify a product you'd like information about."
+            state.customer_message.history.append(state.customer_message.response)
+            return state.customer_message.response
 
         closest_products = []
         for product_desc in products_of_interest:
@@ -108,7 +118,9 @@ class ProductInquiry:
                 )
 
         if not closest_products:
-            return f"Dear {customer_name},\n\nUnfortunately, we don't currently have products matching your inquiry. Please feel free to reach out if you have any other questions."
+            state.customer_message.response = f"Dear {customer_name},\n\nUnfortunately, we don't currently have products matching your inquiry. Please feel free to reach out if you have any other questions."
+            state.customer_message.history.append(state.customer_message.response)
+            return state.customer_message.response
 
         closest_products_str = "\n".join(
             [
@@ -117,11 +129,11 @@ class ProductInquiry:
             ]
         )
 
-        # Extract verify_category prompt and call Bedrock
         verify_category_doc = self.prompts.get("verify_category")
         if not verify_category_doc:
-            return "We encountered an issue while validating products. Please contact us again."
-        verify_prompt = verify_category_doc["content"].replace("{email}", email_content).replace("{similar_items}", closest_products_str)
+            state.customer_message.response = "We encountered an issue while validating products. Please contact us again."
+            return state.customer_message.response
+        verify_prompt = verify_category_doc["content"].replace("{email}", state.customer_message.body).replace("{similar_items}", closest_products_str)
         bedrock_response = self.bedrock_api.call_bedrock(verify_prompt)
         try:
             filtered_results = json.loads(bedrock_response)
@@ -130,24 +142,27 @@ class ProductInquiry:
             logger.error(f"Error parsing Bedrock response: {e}")
             good_alternatives = []
 
-        # Set closest_products_str: use good_alternatives if non-empty, else empty string
         closest_products_str = "\n".join(good_alternatives) if good_alternatives else ""
 
         response_prompt_doc = self.prompts.get("inquiry_response")
         if not response_prompt_doc:
-            return "We encountered an issue while generating the response. Please contact us again."
+            state.customer_message.response = "We encountered an issue while generating the response. Please contact us again."
+            return state.customer_message.response
 
         response_prompt = response_prompt_doc["content"].replace("{customer_name}", customer_name).replace("{products_of_interest}", ", ".join(products_of_interest)).replace("{questions}", questions).replace("{closest_products_str}", closest_products_str)
 
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model=os.getenv('OPEN_AI_CHAT_MODEL'),
                 messages=[{"role": "user", "content": response_prompt}],
                 max_tokens=1000,
                 temperature=0.0,
             )
             final_response = response.choices[0].message.content
         except Exception as e:
-            return "We encountered an issue while generating the response. Please contact us again."
+            logger.error(f"Error generating inquiry response: {e}")
+            final_response = "We encountered an issue while generating the response. Please contact us again."
 
+        state.customer_message.response = final_response
+        state.customer_message.history.append(final_response)
         return final_response
