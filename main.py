@@ -65,12 +65,20 @@ email_processor = EmailProcessor(api_key, prompts, db_handler)
 
 def classify_email_node(state: State) -> dict:
     category = email_processor.classify_email(state)
-    state.customer_message.category = Category[category.upper().replace(" ", "_")]
+    state.customer_message.category = Category[category.upper()]
+    return {}
+
+def verify_email_node(state: State) -> dict:
+    try:
+        email_processor.verify_email_extraction(state)
+        logger.debug(f"Verification result: {state.verification_result.dict()}")
+    except Exception as e:
+        logger.error(f"Error in verify_email_node: {e}")
     return {}
 
 def product_inquiry_node(state: State) -> dict:
     response = product_inquiry.generate_inquiry_response(state)
-    products_of_interest = state.customer_message.products_inquiry  
+    products_of_interest = state.customer_message.products_inquiry
     state.customer_message.response = response
     state.customer_message.history.append(response)
     return {}
@@ -93,34 +101,38 @@ def generate_order_response_node(state: State) -> dict:
 
 workflow = StateGraph(State)
 workflow.add_node("classify_email", classify_email_node)
+workflow.add_node("verify_email", verify_email_node)
 workflow.add_node("product_inquiry", product_inquiry_node)
 workflow.add_node("extract_order_details", extract_order_details_node)
 workflow.add_node("process_order", process_order_node)
 workflow.add_node("generate_order_response", generate_order_response_node)
 workflow.set_entry_point("classify_email")
 
-def route_after_classify(state: State):
+def route_after_verify(state: State):
     category = state.customer_message.category.value
-    if category == "product inquiry":
+    if category == "inquiry":
         return "product_inquiry"
-    elif category == "order request":
+    elif category == "order":
         return "extract_order_details"
     else:
-        raise ValueError(f"Unknown email category: {category}")
+        logger.warning(f"Unknown email category: {category}")
+        return END
 
+workflow.add_edge("classify_email", "verify_email")
 workflow.add_conditional_edges(
-    "classify_email",
-    route_after_classify,
+    "verify_email",
+    route_after_verify,
     {
         "product_inquiry": "product_inquiry",
         "extract_order_details": "extract_order_details",
+        END: END
     }
 )
 workflow.add_edge("extract_order_details", "process_order")
 workflow.add_edge("process_order", "generate_order_response")
 workflow.add_edge("product_inquiry", END)
 workflow.add_edge("generate_order_response", END)
-# Compile without checkpointer for per-request workflow
+
 graph = workflow.compile()
 
 @app.post("/process_email")
@@ -136,10 +148,11 @@ async def process_email(email: EmailRequest):
         return {
             "email_id": final_state.customer_message.id,
             "category": final_state.customer_message.category.value,
-            "response": final_state.customer_message.response
+            "response": final_state.customer_message.response,
+            "verification_result": final_state.verification_result.dict()
         }
     except ValueError as ve:
-        raise ValueError(f"Unknown email category: {str(ve)}")
+        raise HTTPException(status_code=400, detail=f"Unknown email category: {str(ve)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing email: {str(e)}")
 
