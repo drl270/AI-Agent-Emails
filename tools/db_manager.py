@@ -2,12 +2,14 @@
 import json
 import logging
 import os
+import sys
 import tkinter as tk
 from tkinter import messagebox, ttk
 
 from bson import ObjectId
 from dotenv import load_dotenv
 
+sys.path.append(r"C:\GitHub\Python\AICustomerAgent")
 from mongodb_handler import MongoDBHandler
 
 logging.basicConfig(level=logging.DEBUG)

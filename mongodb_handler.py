@@ -1,6 +1,7 @@
 import logging
 import os
 
+import certifi
 import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
@@ -11,18 +12,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class MongoDBHandler:
-    _instance = None
-
-    def __new__(cls, uri, db):
-        if cls._instance is None:
-            cls._instance = super(MongoDBHandler, cls).__new__(cls)
-            cls._instance._initialize(uri, db)
-        return cls._instance
-
-    def _initialize(self, uri, db):
+    def __init__(self, uri, db):
         load_dotenv()
         self.uri = uri
-        self.client = MongoClient(self.uri)
+        self.client = MongoClient(
+            self.uri,
+            tls=True,
+            tlsCAFile=certifi.where(),
+            serverSelectionTimeoutMS=30000
+        )
         self.db = self.client[db]
         try:
             self.client.admin.command('ping')
@@ -154,4 +152,3 @@ class MongoDBHandler:
 
     def close(self):
         self.client.close()
-

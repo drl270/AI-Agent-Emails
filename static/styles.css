@@ -19,6 +19,72 @@ header {
   transform: translateY(-5px);
 }
 
+.flex-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  height: calc(100vh - 120px); /* Adjust for navbar and footer */
+}
+
+.left-column {
+  flex: 1;
+  display: flex;
+}
+
+.right-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.full-height-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.arrow {
+  position: absolute;
+  top: 4.5rem;
+  left: -300px;
+  display: block;
+  transform: scale(0.6); /* Bigger than your 0.6, but reasonable */
+  transform-origin: left top;
+  z-index: 10;
+}
+
+.email-container {
+  position: relative;
+  gap: 5px; /* Reduce gap between arrow and form */
+  margin-left: 14rem; /* Move entire container left */
+  transform: scale(0.8);
+  transform-origin: left top;
+}
+
+.full-height-card .card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.equal-height-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.equal-height-card .card-body {
+  flex: 1;
+}
+
 #responseText {
   white-space: pre-wrap;
   font-size: 0.95rem;
@@ -34,14 +100,25 @@ header {
   border-color: #0056b3;
 }
 
-.email-container {
-  gap: 10px;
-  margin-left: -5rem;
+.ai-agent-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.arrow {
-  margin-top: 4.5rem;
-  display: block;
+/* Legacy styles - keeping for backward compatibility */
+.top-section {
+  height: calc(65vh - 4rem);
+  overflow-y: hidden;
+}
+
+.full-height-container {
+  height: 100%;
+}
+
+.bottom-section {
+  height: 35vh;
+  overflow-y: auto;
 }
 
 /* Responsive adjustments */
@@ -49,14 +126,19 @@ header {
   .navbar-nav {
     text-align: center;
   }
+
+  .main-content {
+    flex-direction: column;
+    height: auto;
+    min-height: calc(100vh - 120px);
+  }
+
+  .left-column,
+  .right-column {
+    flex: none;
+  }
+
   .card {
     margin-bottom: 1.5rem;
-  }
-  .email-container {
-    flex-direction: column;
-  }
-  .arrow {
-    margin: 10px auto;
-    text-align: center;
   }
 }

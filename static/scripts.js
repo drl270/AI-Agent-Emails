@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("scripts.js loaded"); // Debug: Confirm script execution
+  console.log("scripts.js loaded");
 
   // DOM elements
   const emailForm = document.getElementById("emailForm");
@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // Function to check if all required fields are filled
+  // Function to check form validity
   const checkFormValidity = () => {
     const isValid =
       emailId.value.trim() && subject.value.trim() && message.value.trim();
@@ -49,18 +49,38 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // Add input event listeners
-  emailId.addEventListener("input", () => {
-    console.log("emailId input:", emailId.value);
-    checkFormValidity();
-  });
-  subject.addEventListener("input", () => {
-    console.log("subject input:", subject.value);
-    checkFormValidity();
-  });
-  message.addEventListener("input", () => {
-    console.log("message input:", message.value);
-    checkFormValidity();
-  });
+  emailId.addEventListener("input", checkFormValidity);
+  subject.addEventListener("input", checkFormValidity);
+  message.addEventListener("input", checkFormValidity);
+
+  // Fallback emails
+  const fallbackEmails = [
+    {
+      email_id: "test123",
+      subject: "Test Complaint",
+      message: "I have a complaint about my order.",
+    },
+    {
+      email_id: "test456",
+      subject: "Order Status",
+      message: "Please provide an update on my order status.",
+    },
+    {
+      email_id: "test789",
+      subject: "Random Question",
+      message: "I have a random question.",
+    },
+    {
+      email_id: "test101",
+      subject: "Product Inquiry",
+      message: "Tell me about your products.",
+    },
+    {
+      email_id: "test102",
+      subject: "Order Request",
+      message: "I want to order 2 units of product ABC1234.",
+    },
+  ];
 
   // Load data.csv and populate email dropdown
   console.log("Attempting to load /static/data.csv");
@@ -70,8 +90,9 @@ document.addEventListener("DOMContentLoaded", () => {
     complete: function (results) {
       console.log("Parsed data:", results.data);
       console.log("Errors:", results.errors);
-      results.data.forEach((email) => {
-        console.log("Processing email:", email);
+      let emails = results.errors.length > 0 ? fallbackEmails : results.data;
+      emails.forEach((email, index) => {
+        console.log(`Processing email ${index}:`, email);
         if (email.email_id && email.subject && email.message) {
           const option = document.createElement("option");
           option.value = email.email_id;
@@ -85,7 +106,14 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     error: function (error) {
       console.error("Error loading /static/data.csv:", error);
-      alert("Failed to load email list. Please try manual input.");
+      fallbackEmails.forEach((email, index) => {
+        console.log(`Processing fallback email ${index}:`, email);
+        const option = document.createElement("option");
+        option.value = email.email_id;
+        option.textContent = `${email.email_id}: ${email.subject}`;
+        emailSelect.appendChild(option);
+      });
+      checkFormValidity();
     },
   });
 
@@ -98,9 +126,14 @@ document.addEventListener("DOMContentLoaded", () => {
         header: true,
         complete: function (results) {
           console.log("Parsed data for selection:", results.data);
-          const selectedEmail = results.data.find(
+          let selectedEmail = results.data.find(
             (email) => email.email_id === emailSelect.value
           );
+          if (!selectedEmail) {
+            selectedEmail = fallbackEmails.find(
+              (email) => email.email_id === emailSelect.value
+            );
+          }
           if (selectedEmail) {
             emailId.value = selectedEmail.email_id;
             subject.value = selectedEmail.subject;
@@ -113,7 +146,16 @@ document.addEventListener("DOMContentLoaded", () => {
         },
         error: function (error) {
           console.error("Error loading /static/data.csv:", error);
-          alert("Failed to load email list. Please try manual input.");
+          const selectedEmail = fallbackEmails.find(
+            (email) => email.email_id === emailSelect.value
+          );
+          if (selectedEmail) {
+            emailId.value = selectedEmail.email_id;
+            subject.value = selectedEmail.subject;
+            message.value = selectedEmail.message;
+            console.log("Selected fallback email populated:", selectedEmail);
+            checkFormValidity();
+          }
         },
       });
     } else {
@@ -142,7 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     try {
-      const response = await fetch("/process_email", {
+      const response = await fetch("http://127.0.0.1:8000/process_email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(emailData),
@@ -163,10 +205,12 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("Form submission successful:", data);
     } catch (error) {
       console.error("Error sending email:", error);
-      alert("Failed to send email. Please try again later.");
+      responseText.textContent = `Error: ${error.message}`;
+      responseCard.classList.remove("d-none");
     } finally {
       submitText.textContent = "Send Email";
       loadingSpinner.classList.add("d-none");
+      checkFormValidity();
     }
   });
 });
