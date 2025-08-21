@@ -166,13 +166,43 @@
           </div>
         </div>
 
-        <!-- Right Column - Two Equal Height Cards -->
         <div class="right-column">
           <!-- Top Right Card -->
           <div class="card shadow-sm equal-height-card">
             <div class="card-body">
-              <h5 class="card-title">Ecommerce Cart</h5>
-              <p></p>
+              <h5 class="card-title" id="cartWelcome">Welcome to your Cart:</h5>
+
+              <!-- Orders Section -->
+              <div class="cart-section">
+                <h6 class="section-title">Your Orders</h6>
+                <div id="ordersContainer" class="products-container">
+                  <!-- Orders will be populated by JS -->
+                </div>
+                <div class="total-section">
+                  <strong>Total: $<span id="orderTotal">0.00</span></strong>
+                </div>
+              </div>
+
+              <!-- Suggestions Section -->
+              <div class="cart-section">
+                <h6 class="section-title">Suggested Products</h6>
+                <div id="suggestionsContainer" class="products-container">
+                  <!-- Suggestions will be populated by JS -->
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="cart-buttons">
+                <button class="btn btn-success btn-sm" id="completeOrderBtn">
+                  Complete Order
+                </button>
+                <button class="btn btn-primary btn-sm" id="addSuggestionsBtn">
+                  Add Suggestions
+                </button>
+                <button class="btn btn-danger btn-sm" id="removeOrdersBtn">
+                  Remove/Change Qty
+                </button>
+              </div>
             </div>
           </div>
 
@@ -180,7 +210,11 @@
           <div class="card shadow-sm equal-height-card">
             <div class="card-body">
               <h5 class="card-title">Workflow</h5>
-              <p></p>
+              <img
+                src="/static/ai_agent_workflow.png"
+                class="img-fluid"
+                alt="Workflow diagram"
+              />
             </div>
           </div>
         </div>
