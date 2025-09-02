@@ -1,7 +1,97 @@
+function populateOrdersContainer(products_purchase) {
+  const ordersContainer = document.getElementById("ordersContainer");
+  const orderTotal = document.getElementById("orderTotal");
+
+  ordersContainer.innerHTML = "";
+
+  let total = 0;
+
+  products_purchase.forEach((product) => {
+    const orderItem = document.createElement("div");
+    orderItem.className = "order-item";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "order-field";
+    nameSpan.textContent = product.product_name;
+
+    const quantitySpan = document.createElement("span");
+    quantitySpan.className = "order-field";
+    quantitySpan.textContent = product.quantity;
+
+    const idSpan = document.createElement("span");
+    idSpan.className = "order-field";
+    idSpan.textContent = product.product_id;
+
+    const priceSpan = document.createElement("span");
+    priceSpan.className = "order-field";
+    priceSpan.textContent = `$${product.price}`;
+
+    orderItem.appendChild(nameSpan);
+    orderItem.appendChild(quantitySpan);
+    orderItem.appendChild(idSpan);
+    orderItem.appendChild(priceSpan);
+
+    ordersContainer.appendChild(orderItem);
+
+    total += product.quantity * product.price;
+  });
+
+  orderTotal.textContent = total.toFixed(2);
+}
+
+function populateSuggestionsContainer(products_recommendations) {
+  const suggestionsContainer = document.getElementById("suggestionsContainer");
+
+  suggestionsContainer.innerHTML = "";
+
+  products_recommendations.forEach((product) => {
+    const suggestionItem = document.createElement("div");
+    suggestionItem.className = "suggestion-item";
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "suggestion-field";
+    nameSpan.textContent = product.product_name;
+
+    const idSpan = document.createElement("span");
+    idSpan.className = "suggestion-field";
+    idSpan.textContent = `ID: ${product.product_id}`;
+
+    const priceSpan = document.createElement("span");
+    priceSpan.className = "suggestion-field";
+    priceSpan.textContent = `$${product.price}`;
+
+    suggestionItem.appendChild(nameSpan);
+    suggestionItem.appendChild(idSpan);
+    suggestionItem.appendChild(priceSpan);
+
+    suggestionsContainer.appendChild(suggestionItem);
+  });
+}
+
+const fallbackEmails = [
+  {
+    email_id: "1",
+    subject: "Order Status Inquiry",
+    message:
+      "Hi, I wanted to check on the status of my recent order. Can you please let me know when it will be shipped?",
+  },
+  {
+    email_id: "2",
+    subject: "Product Return Request",
+    message:
+      "I need to return a product I purchased last week. What is your return policy and process?",
+  },
+  {
+    email_id: "3",
+    subject: "Size Exchange",
+    message:
+      "I ordered a medium shirt but need to exchange it for a large. How can I do this?",
+  },
+];
+
 document.addEventListener("DOMContentLoaded", () => {
   console.log("scripts.js loaded");
 
-  // DOM elements
   const emailForm = document.getElementById("emailForm");
   const submitButton = document.getElementById("submitButton");
   const emailId = document.getElementById("emailId");
@@ -15,7 +105,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const responseCategory = document.getElementById("responseCategory");
   const responseText = document.getElementById("responseText");
 
-  // Verify DOM elements
   if (
     !emailForm ||
     !submitButton ||
@@ -35,7 +124,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
 
-  // Function to check form validity
   const checkFormValidity = () => {
     const isValid =
       emailId.value.trim() && subject.value.trim() && message.value.trim();
@@ -48,64 +136,49 @@ document.addEventListener("DOMContentLoaded", () => {
     submitButton.disabled = !isValid;
   };
 
-  // Add input event listeners
   emailId.addEventListener("input", checkFormValidity);
   subject.addEventListener("input", checkFormValidity);
   message.addEventListener("input", checkFormValidity);
 
-  // Fallback emails
-  const fallbackEmails = [
-    {
-      email_id: "test123",
-      subject: "Test Complaint",
-      message: "I have a complaint about my order.",
-    },
-    {
-      email_id: "test456",
-      subject: "Order Status",
-      message: "Please provide an update on my order status.",
-    },
-    {
-      email_id: "test789",
-      subject: "Random Question",
-      message: "I have a random question.",
-    },
-    {
-      email_id: "test101",
-      subject: "Product Inquiry",
-      message: "Tell me about your products.",
-    },
-    {
-      email_id: "test102",
-      subject: "Order Request",
-      message: "I want to order 2 units of product ABC1234.",
-    },
-  ];
-
-  // Load data.csv and populate email dropdown
   console.log("Attempting to load /static/data.csv");
   Papa.parse("/static/data.csv", {
     download: true,
     header: true,
+    skipEmptyLines: true,
     complete: function (results) {
       console.log("Parsed data:", results.data);
       console.log("Errors:", results.errors);
-      let emails = results.errors.length > 0 ? fallbackEmails : results.data;
-      emails.forEach((email, index) => {
-        console.log(`Processing email ${index}:`, email);
-        if (email.email_id && email.subject && email.message) {
+
+      let emails = results.data;
+
+      if (emails && emails.length > 0) {
+        emails.forEach((email, index) => {
+          console.log(`Processing email ${index}:`, email);
+          if (email.email_id && email.subject && email.message) {
+            const option = document.createElement("option");
+            option.value = email.email_id;
+            option.textContent = `${email.email_id}: ${email.subject}`;
+            emailSelect.appendChild(option);
+          } else {
+            console.warn("Skipping email due to missing fields:", email);
+          }
+        });
+      } else {
+        console.warn("No emails found in CSV, using fallback data");
+        // Use fallback data if CSV is empty
+        fallbackEmails.forEach((email, index) => {
+          console.log(`Processing fallback email ${index}:`, email);
           const option = document.createElement("option");
           option.value = email.email_id;
           option.textContent = `${email.email_id}: ${email.subject}`;
           emailSelect.appendChild(option);
-        } else {
-          console.warn("Skipping email due to missing fields:", email);
-        }
-      });
+        });
+      }
       checkFormValidity();
     },
     error: function (error) {
       console.error("Error loading /static/data.csv:", error);
+      // Use fallback data when CSV fails to load
       fallbackEmails.forEach((email, index) => {
         console.log(`Processing fallback email ${index}:`, email);
         const option = document.createElement("option");
@@ -117,13 +190,13 @@ document.addEventListener("DOMContentLoaded", () => {
     },
   });
 
-  // Handle email selection
   emailSelect.addEventListener("change", () => {
     console.log("emailSelect changed:", emailSelect.value);
     if (emailSelect.value) {
       Papa.parse("/static/data.csv", {
         download: true,
         header: true,
+        skipEmptyLines: true,
         complete: function (results) {
           console.log("Parsed data for selection:", results.data);
           let selectedEmail = results.data.find(
@@ -165,7 +238,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Handle form submission
   emailForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     console.log("Form submitted:", {
@@ -184,11 +256,18 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/process_email", {
+      const response = await fetch("http://3.20.206.137:8000/process_email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(emailData),
       });
+
+      /*try {
+      const response = await fetch("http://localhost:8000/process_email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailData),
+      }); */
 
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
@@ -199,6 +278,8 @@ document.addEventListener("DOMContentLoaded", () => {
       responseCategory.textContent = data.category;
       responseText.textContent = data.response;
       responseCard.classList.remove("d-none");
+      populateOrdersContainer(data.products_purchase);
+      populateSuggestionsContainer(data.products_recommendations);
       emailForm.reset();
       emailSelect.value = "";
       submitButton.disabled = true;

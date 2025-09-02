@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import sys
 import traceback
 import uuid
 
@@ -8,6 +9,7 @@ import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from langgraph.graph import END, StateGraph
 
@@ -23,17 +25,36 @@ from response_generator import ResponseGenerator
 from utils import load_prompts
 from verification_processor import VerificationProcessor
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(levelname)s:%(name)s:%(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
 
+logging.getLogger('email_processor').setLevel(logging.INFO)
+logging.getLogger('verification_processor').setLevel(logging.INFO) 
+logging.getLogger('response_generator').setLevel(logging.INFO)
+logging.getLogger('inventory_manager').setLevel(logging.INFO)
+logging.getLogger('locate_products').setLevel(logging.INFO)
+logging.getLogger('product_similarity').setLevel(logging.INFO)
+
 app = FastAPI()
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/")
+async def root():
+    return FileResponse('static/ai-customer-agent.html')
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"], 
+    allow_headers=["*"],  
 )
 
 load_dotenv()
@@ -70,7 +91,6 @@ response_processor = ResponseGenerator(prompts, db_handler)
 product_similarity = ProductSimilarity(
     processed_catalog_df, catalog_embeddings, api_key, prompts, db_handler
 )
-
 
 async def extract_category_node(state: State) -> dict:
     try:
@@ -172,7 +192,6 @@ async def verify_remaining_extracted_data_node(state: State) -> dict:
         logger.error(f"Error in verify_remaining_extracted_data_node: {e}")
         return {"verification_result": None}
     
-    
 async def locate_product_id_node(state: State) -> dict:
     try:
         result = locate_products_processor.locate_product_ids(state)
@@ -181,7 +200,6 @@ async def locate_product_id_node(state: State) -> dict:
         logger.error(f"Error in locate_product_id_node: {e}")
         return {"customer_message": state.get("customer_message", CustomerMessage())}
     
-        
 async def check_inventory_node(state: State) -> dict:
     try:
         result = inventory_processor.check_inventory(state)
@@ -190,7 +208,6 @@ async def check_inventory_node(state: State) -> dict:
         logger.error(f"Error in check_inventory_node: {e}")
         return {"customer_message": state.get("customer_message", CustomerMessage())}
         
-
 async def similar_products_node(state: State) -> dict:
     try:
         result = product_similarity.generate_similar_products(state)
@@ -200,7 +217,6 @@ async def similar_products_node(state: State) -> dict:
         logger.error(f"Error in similar_products_node: {e}")
         return {"customer_message": state.get("customer_message", CustomerMessage())}
         
-
 async def generate_response_node(state: State) -> dict:
     try:
         customer_message = state.get("customer_message", CustomerMessage())
@@ -311,11 +327,23 @@ async def process_email(email: EmailRequest):
         
         resp =  {"response": final_state["customer_message"].response}
         print(f"  response {resp}  ")
+        logger.debug(f"Response: {final_state["customer_message"].products_purchase}")
+        
+        print(f"PRODUCTS_PURCHASE: {final_state['customer_message'].products_purchase}")
+        print(f"PRODUCTS_INQUIRY: {final_state['customer_message'].products_inquiry}")
+        print(f"PRODUCTS_ISUGGESTIONS: {final_state['customer_message'].products_recommendations}")
         
         return {
             "email_id": final_state["customer_message"].id,
             "category": final_state["customer_message"].category.value,
             "response": final_state["customer_message"].response,
+            "first_name": final_state["customer_message"].first_name,
+            "last_name": final_state["customer_message"].last_name,
+            "title": final_state["customer_message"].title,
+            "history": final_state["customer_message"].history,
+            "products_purchase": final_state["customer_message"].products_purchase,
+            "products_inquiry": final_state["customer_message"].products_inquiry,
+            "products_recommendations": final_state["customer_message"].products_recommendations,
             "verification_result": final_state["verification_result"] if final_state["verification_result"] else None
             
         }
@@ -328,4 +356,4 @@ async def process_email(email: EmailRequest):
         raise HTTPException(status_code=500, detail=f"Error processing email: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

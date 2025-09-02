@@ -11,7 +11,6 @@ from bedrock_api import BedrockAPI
 from global_state import (Category, CustomerMessage, OrderStatus, Product,
                           State, VerificationResult)
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class EmailProcessor:
@@ -265,6 +264,9 @@ class EmailProcessor:
         except Exception as e:
             logger.error(f"Unexpected error in extract_questions: {e}")
             return {"customer_message": state.get("customer_message", CustomerMessage())}
+        
+    def extract_language(self, state):
+        pass
 
     def extract_reason(self, state):
         try:

@@ -3,7 +3,6 @@ import logging
 from global_state import (CustomerMessage, OrderStatus, Product, State,
                           VerificationResult)
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class InventoryManager:

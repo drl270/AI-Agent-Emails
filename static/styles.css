@@ -169,8 +169,31 @@ header {
   overflow-y: auto;
 }
 
+/* Individual order item row */
+.order-item {
+  display: flex; /* Use flexbox for equal spacing */
+  justify-content: space-between; /* Space fields evenly across the row */
+  align-items: center; /* Vertically center content */
+  padding: 0.5rem 1rem; /* Add padding for better appearance */
+  border-bottom: 1px solid #dee2e6; /* Light border for separation, matches Bootstrap */
+  margin-bottom: 0.5rem; /* Space between rows */
+  background-color: #f8f9fa; /* Light background for contrast, matches Bootstrap */
+  border-radius: 0.25rem; /* Subtle rounded corners, matches Bootstrap */
+}
+
+/* Individual field within an order item */
+.order-field {
+  flex: 1; /* Each field takes equal width */
+  text-align: center; /* Center text for better alignment */
+  padding: 0 0.5rem; /* Horizontal padding for spacing */
+  font-size: 0.9rem; /* Slightly smaller font for compact display */
+  overflow: hidden; /* Prevent overflow */
+  text-overflow: ellipsis; /* Truncate long text with ellipsis */
+  white-space: nowrap; /* Prevent text wrapping */
+}
+
 /* Responsive adjustments */
-@media (max-width: 768px) {
+@media (max-width: 480px) {
   .navbar-nav {
     text-align: center;
   }

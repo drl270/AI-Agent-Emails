@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict, List, Optional, TypedDict
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class Category(Enum):
@@ -34,16 +34,17 @@ class CustomerMessage(BaseModel):
     first_name: str = ""
     last_name: str = ""
     title: str = ""
-    products_purchase: List[Product] = []
-    products_inquiry: List[Product] = []
-    products_recommendations: List[Product] = []
-    questions: List[str] = []
+    products_purchase: List[Product] = Field(default_factory=list)
+    products_inquiry: List[Product] = Field(default_factory=list)
+    products_recommendations: List[Product] = Field(default_factory=list)
+    questions: List[str] = Field(default_factory=list)
     category: Category = Category.UNKNOWN
-    history: List[str] = []
+    history: List[str] = Field(default_factory=list)
     formatted_summary: str = ""
-    order_details: Dict = {}
+    order_details: Dict = Field(default_factory=dict)
     response: str = ""
     occasion: str = ""
+    language: str = ""
 
 class VerificationResult(BaseModel):
     first_name: bool = False
@@ -55,7 +56,6 @@ class VerificationResult(BaseModel):
     occasion: bool = False
 
 
-# This is the correct approach - State as TypedDict
 class State(TypedDict):
     customer_message: Optional[CustomerMessage]
     verification_result: Optional[VerificationResult]
